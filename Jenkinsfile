@@ -61,61 +61,57 @@ pipeline {
         }
 
         
+        
         stage('Docker Hub Push') {
             steps {
                 withCredentials([
                     usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
+                        credentialsId: 'dockerhub-new',
                         usernameVariable: 'DOCKER_USERNAME',
                         passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
                     powershell '''
-                        $docker = (Get-Command docker.exe).Source
+                        $passwordFile = [System.IO.Path]::GetTempFileName()
 
-                        $psi = New-Object System.Diagnostics.ProcessStartInfo
-                        $psi.FileName = $docker
-                        $psi.Arguments = "login --username $env:DOCKER_USERNAME --password-stdin"
-                        $psi.UseShellExecute = $false
-                        $psi.RedirectStandardInput = $true
-                        $psi.RedirectStandardOutput = $true
-                        $psi.RedirectStandardError = $false
+                        try {
+                            $encoding = New-Object System.Text.UTF8Encoding($false)
 
-                        $process = New-Object System.Diagnostics.Process
-                        $process.StartInfo = $psi
+                            [System.IO.File]::WriteAllText(
+                                $passwordFile,
+                                $env:DOCKER_PASSWORD,
+                                $encoding
+                            )
 
-                        [void]$process.Start()
+                            $cmd = 'docker login -u "' +
+                                $env:DOCKER_USERNAME +
+                                '" --password-stdin < "' +
+                                $passwordFile +
+                                '"'
 
-                        $bytes = [System.Text.Encoding]::UTF8.GetBytes(
-                            $env:DOCKER_PASSWORD + "`n"
-                        )
+                            & $env:ComSpec /d /s /c $cmd
+                            $exitCode = $LASTEXITCODE
 
-                        $process.StandardInput.BaseStream.Write(
-                            $bytes, 0, $bytes.Length
-                        )
-
-                        $process.StandardInput.Close()
-
-                        $output = $process.StandardOutput.ReadToEnd()
-                        $process.WaitForExit()
-
-                        Write-Host $output
-
-                        if ($process.ExitCode -ne 0) {
-                            Write-Error "Docker Hub login failed."
-                            exit 1
+                            if ($exitCode -ne 0) {
+                                throw "Docker Hub login failed"
+                            }
                         }
-
-                        Write-Host "Docker Hub login successful."
+                        finally {
+                            Remove-Item $passwordFile -Force -ErrorAction SilentlyContinue
+                        }
                     '''
 
                     bat '''
                         docker push %DOCKER_IMAGE%:%BUILD_NUMBER%
+                        if errorlevel 1 exit /b 1
+
                         docker push %DOCKER_IMAGE%:latest
+                        if errorlevel 1 exit /b 1
                     '''
                 }
             }
         }
+
 
     }
 
