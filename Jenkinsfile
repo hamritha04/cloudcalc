@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -42,6 +41,7 @@ pipeline {
             steps {
                 bat 'mvn clean verify'
             }
+
             post {
                 always {
                     junit allowEmptyResults: true,
@@ -60,7 +60,6 @@ pipeline {
             }
         }
 
-        
         stage('Docker Hub Push') {
             steps {
                 withCredentials([
@@ -70,11 +69,15 @@ pipeline {
                         passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
-                    powershell '''
-                        Write-Host "Docker username: $env:DOCKER_USERNAME"
-                        Write-Host "Docker token length: $($env:DOCKER_PASSWORD.Length)"
 
-                        $env:DOCKER_PASSWORD | docker login `
+                    powershell '''
+                        $token = $env:DOCKER_PASSWORD.Trim()
+
+                        Write-Host "Docker username: $env:DOCKER_USERNAME"
+                        Write-Host "Original token length: $($env:DOCKER_PASSWORD.Length)"
+                        Write-Host "Trimmed token length: $($token.Length)"
+
+                        $token | docker login `
                             --username $env:DOCKER_USERNAME `
                             --password-stdin
 
@@ -90,7 +93,6 @@ pipeline {
                 }
             }
         }
-
     }
 
     post {
