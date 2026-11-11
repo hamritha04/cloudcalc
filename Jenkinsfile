@@ -60,6 +60,7 @@ pipeline {
             }
         }
 
+        
         stage('Docker Hub Push') {
             steps {
                 withCredentials([
@@ -70,6 +71,9 @@ pipeline {
                     )
                 ]) {
                     powershell '''
+                        Write-Host "Docker username: $env:DOCKER_USERNAME"
+                        Write-Host "Docker token length: $($env:DOCKER_PASSWORD.Length)"
+
                         $env:DOCKER_PASSWORD | docker login `
                             --username $env:DOCKER_USERNAME `
                             --password-stdin
@@ -86,6 +90,7 @@ pipeline {
                 }
             }
         }
+
     }
 
     post {
