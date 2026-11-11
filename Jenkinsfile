@@ -60,6 +60,7 @@ pipeline {
             }
         }
 
+        
         stage('Docker Hub Push') {
             steps {
                 withCredentials([
@@ -69,21 +70,43 @@ pipeline {
                         passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
-
                     powershell '''
-                        $token = $env:DOCKER_PASSWORD.Trim()
+                        $docker = (Get-Command docker.exe).Source
 
-                        Write-Host "Docker username: $env:DOCKER_USERNAME"
-                        Write-Host "Original token length: $($env:DOCKER_PASSWORD.Length)"
-                        Write-Host "Trimmed token length: $($token.Length)"
+                        $psi = New-Object System.Diagnostics.ProcessStartInfo
+                        $psi.FileName = $docker
+                        $psi.Arguments = "login --username $env:DOCKER_USERNAME --password-stdin"
+                        $psi.UseShellExecute = $false
+                        $psi.RedirectStandardInput = $true
+                        $psi.RedirectStandardOutput = $true
+                        $psi.RedirectStandardError = $false
 
-                        $token | docker login `
-                            --username $env:DOCKER_USERNAME `
-                            --password-stdin
+                        $process = New-Object System.Diagnostics.Process
+                        $process.StartInfo = $psi
 
-                        if ($LASTEXITCODE -ne 0) {
+                        [void]$process.Start()
+
+                        $bytes = [System.Text.Encoding]::UTF8.GetBytes(
+                            $env:DOCKER_PASSWORD + "`n"
+                        )
+
+                        $process.StandardInput.BaseStream.Write(
+                            $bytes, 0, $bytes.Length
+                        )
+
+                        $process.StandardInput.Close()
+
+                        $output = $process.StandardOutput.ReadToEnd()
+                        $process.WaitForExit()
+
+                        Write-Host $output
+
+                        if ($process.ExitCode -ne 0) {
+                            Write-Error "Docker Hub login failed."
                             exit 1
                         }
+
+                        Write-Host "Docker Hub login successful."
                     '''
 
                     bat '''
@@ -93,6 +116,7 @@ pipeline {
                 }
             }
         }
+
     }
 
     post {
