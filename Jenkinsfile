@@ -113,6 +113,13 @@ pipeline {
         }
 
 
+
+        stage('Deploy to Azure AKS') {
+            steps {
+                echo 'Deploying CloudCalc to Azure AKS using Ansible...'
+                bat 'wsl.exe -d Ubuntu -- bash -lc "cd ~/cloudcalc-ansible && source .venv/bin/activate && ansible-playbook playbooks/deploy.yml && kubectl rollout restart deployment/cloudcalc -n cloudcalc && kubectl rollout status deployment/cloudcalc -n cloudcalc --timeout=300s"'
+            }
+        }
     }
 
     post {
