@@ -27,12 +27,11 @@ pipeline {
         stage('Gitleaks Security Scan') {
             steps {
                 echo 'Scanning repository for exposed secrets...'
-
                 bat '''
                     docker run --rm ^
-                    -v "%WORKSPACE%:/repo" ^
-                    zricethezav/gitleaks:latest ^
-                    detect --source=/repo --verbose --redact
+                        -v "%WORKSPACE%:/repo" ^
+                        zricethezav/gitleaks:latest ^
+                        dir /repo --config /repo/.gitleaks.toml --verbose --redact
                 '''
             }
         }

@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "cloudcalc-test-secret"
+description = "Detect CloudCalc test credentials"
+regex = '''CLOUDCALC_TEST_SECRET_[A-Za-z0-9]{16}'''
+keywords = ["CLOUDCALC_TEST_SECRET"]
+tags = ["cloudcalc", "secret"]
